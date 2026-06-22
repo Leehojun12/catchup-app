@@ -3,16 +3,31 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "expo": "~56.0.12",
-    "expo-status-bar": "~56.0.4",
-    "react": "19.2.3",
-    "react-native": "0.85.3"
+    "@react-navigation/bottom-tabs": "^7.18.2",
+    "@react-navigation/native": "^7.3.3",
+    "@react-navigation/stack": "^7.10.5",
+    "dayjs": "^1.11.21",
+    "expo": "^54.0.0",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-calendars": "^1.1314.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
   },
   "scripts": {
-    "start": "expo start",
+    "stop": "powershell -Command \"Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\"",
+    "prestart:tunnel": "npm run stop",
+    "start": "expo start --lan",
+    "start:tunnel": "expo start --tunnel --port 8081",
+    "start:lan": "expo start --lan",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3"
+  }
 }
