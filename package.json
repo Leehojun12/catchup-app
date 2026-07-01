@@ -1,18 +1,12 @@
 {
   "name": "catchup-app",
-  "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "expo": "~56.0.12",
-    "expo-status-bar": "~56.0.4",
-    "react": "19.2.3",
-    "react-native": "0.85.3"
-  },
+  "private": true,
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "frontend": "npm --prefix frontend start",
+    "backend": "npm --prefix backend run dev",
+    "install:all": "npm --prefix frontend install && npm --prefix backend install"
   },
-  "private": true
+  "dependencies": {
+    "react-native-calendars": "^1.1314.0"
+  }
 }
