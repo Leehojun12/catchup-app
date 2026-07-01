@@ -15,6 +15,10 @@ export default function CalendarView({
   onLongPressDate,
 }) {
   const days = getCalendarDays(currentMonth);
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
 
   return (
     <View style={[styles.container, collapsed && styles.collapsed]}>
@@ -30,39 +34,43 @@ export default function CalendarView({
       </View>
 
       <View style={styles.grid}>
-        {days.map((day) => {
-          const isSelected = day.date === selectedDate;
-          const hasEvent = markedDates[day.date]?.marked;
+        {weeks.map((week) => (
+          <View key={week[0].date} style={styles.week}>
+            {week.map((day) => {
+              const isSelected = day.date === selectedDate;
+              const hasEvent = markedDates[day.date]?.marked;
 
-          return (
-            <Pressable
-              key={day.date}
-              style={styles.cell}
-              onPress={() => onSelectDate(day.date)}
-              onLongPress={() => onLongPressDate?.(day.date)}
-            >
-              <View
-                style={[
-                  styles.dayCircle,
-                  day.isToday && styles.todayCircle,
-                  isSelected && styles.selectedCircle,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    !day.isCurrentMonth && styles.otherMonth,
-                    day.isToday && styles.todayText,
-                    isSelected && styles.selectedText,
-                  ]}
+              return (
+                <Pressable
+                  key={day.date}
+                  style={styles.cell}
+                  onPress={() => onSelectDate(day.date)}
+                  onLongPress={() => onLongPressDate?.(day.date)}
                 >
-                  {day.day}
-                </Text>
-              </View>
-              {hasEvent && <View style={styles.dot} />}
-            </Pressable>
-          );
-        })}
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      day.isToday && styles.todayCircle,
+                      isSelected && styles.selectedCircle,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !day.isCurrentMonth && styles.otherMonth,
+                        day.isToday && styles.todayText,
+                        isSelected && styles.selectedText,
+                      ]}
+                    >
+                      {day.day}
+                    </Text>
+                  </View>
+                  {hasEvent && <View style={styles.dot} />}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -95,11 +103,13 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   grid: {
+    flexDirection: 'column',
+  },
+  week: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
   cell: {
-    width: `${100 / 7}%`,
+    flex: 1,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
