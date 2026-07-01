@@ -1,32 +1,40 @@
-import React from 'react';
-import { StyleSheet, View, SafeAreaView } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import React, { useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from './src/context/AuthContext';
+import { EventProvider } from './src/context/EventContext';
+import RootNavigator from './src/navigation/RootNavigator';
+import { requestNotificationPermissions } from './src/services/notifications';
+import { initRepository } from './src/db/eventsRepository';
 
 export default function App() {
+  useEffect(() => {
+    requestNotificationPermissions().catch(() => {});
+
+    // Initialize persistence. The repository probes WatermelonDB once and falls
+    // back to AsyncStorage when the native module isn't available (e.g. Expo Go),
+    // so the app never crashes regardless of the runtime.
+    (async () => {
+      const mode = await initRepository();
+      if (mode === 'watermelon') {
+        console.log('[DB] WatermelonDB 초기화 성공 ✓');
+      } else {
+        console.warn(
+          '[DB] WatermelonDB 미사용 — AsyncStorage로 폴백했습니다. ' +
+            'WatermelonDB를 쓰려면 Expo Go가 아닌 development build로 실행하세요.'
+        );
+      }
+    })();
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.calendarContainer}>
-        <Calendar
-          // 달력의 기본 설정
-          onDayPress={(day) => {
-            console.log('선택한 날짜: ', day);
-          }}
-          theme={{
-            todayTextColor: '#00adf5',
-            selectedDayBackgroundColor: '#00adf5',
-          }}
-        />
-      </View>
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <EventProvider>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </EventProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  calendarContainer: {
-    marginTop: 50,
-  },
-});
