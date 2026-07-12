@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, layout, spacing } from '../../constants/theme';
 
-export default function EventCard({ event, onEdit, onDelete, onDirections }) {
+export default function EventCard({ event, onPress, onEdit, onDelete, onDirections }) {
   const membersText = event.members?.length ? event.members.join(', ') : null;
 
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={() => onPress?.(event)}>
       <View style={styles.timeColumn}>
         {event.allDay ? (
           <Text style={styles.allDay}>종일</Text>
@@ -29,18 +29,39 @@ export default function EventCard({ event, onEdit, onDelete, onDirections }) {
 
       <View style={styles.actions}>
         {event.location ? (
-          <Pressable onPress={() => onDirections(event)} style={styles.actionButton} hitSlop={8}>
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onDirections(event);
+            }}
+            style={styles.actionButton}
+            hitSlop={8}
+          >
             <Ionicons name="navigate-outline" size={18} color={colors.primary} />
           </Pressable>
         ) : null}
-        <Pressable onPress={() => onEdit(event)} style={styles.actionButton} hitSlop={8}>
+        <Pressable
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            onEdit(event);
+          }}
+          style={styles.actionButton}
+          hitSlop={8}
+        >
           <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
         </Pressable>
-        <Pressable onPress={() => onDelete(event)} style={styles.actionButton} hitSlop={8}>
+        <Pressable
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            onDelete(event);
+          }}
+          style={styles.actionButton}
+          hitSlop={8}
+        >
           <Ionicons name="trash-outline" size={18} color={colors.error} />
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

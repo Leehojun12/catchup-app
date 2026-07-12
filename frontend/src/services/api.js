@@ -136,4 +136,7 @@ export const api = {
 
   getChecklist: (event) =>
     request('/recommendations/checklist', { method: 'POST', body: { event } }),
+
+  getRouteInfo: (payload) =>
+    request('/map/route', { method: 'POST', body: payload }),
 };

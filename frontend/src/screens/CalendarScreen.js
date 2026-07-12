@@ -13,6 +13,7 @@ import { openDirections } from '../utils/directions';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarView from '../components/calendar/CalendarView';
 import DayDetailSheet from '../components/events/DayDetailSheet';
+import EventDetailSheet from '../components/events/EventDetailSheet';
 import AddEventSheet from '../components/forms/AddEventSheet';
 import PreviewCard from '../components/forms/PreviewCard';
 import ActionSheet from '../components/input/ActionSheet';
@@ -44,6 +45,7 @@ export default function CalendarScreen() {
   const [missingFields, setMissingFields] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [parsing, setParsing] = useState(false);
 
   const markedDates = useMemo(() => getDatesWithEvents(), [getDatesWithEvents]);
@@ -165,6 +167,10 @@ export default function CalendarScreen() {
     });
   };
 
+  const handleSelectEvent = (event) => {
+    setSelectedEvent(event);
+  };
+
   const formInitialData = editingEvent || { date: selectedDate };
 
   return (
@@ -203,9 +209,25 @@ export default function CalendarScreen() {
         date={selectedDate}
         events={dayEvents}
         onClose={closePanel}
+        onPress={handleSelectEvent}
         onEdit={handleEdit}
         onDelete={(event) => setDeleteTarget(event)}
         onDirections={handleDirections}
+      />
+
+      <EventDetailSheet
+        visible={!!selectedEvent}
+        event={selectedEvent}
+        homeAddress={user?.homeAddress}
+        onClose={() => setSelectedEvent(null)}
+        onEdit={(event) => {
+          setSelectedEvent(null);
+          handleEdit(event);
+        }}
+        onDelete={(event) => {
+          setSelectedEvent(null);
+          setDeleteTarget(event);
+        }}
       />
 
       <ActionSheet

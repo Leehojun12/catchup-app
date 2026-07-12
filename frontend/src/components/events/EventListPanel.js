@@ -5,7 +5,7 @@ import { formatDisplayDate, sortEventsByTime } from '../../utils/dateUtils';
 import EventCard from './EventCard';
 import EmptyState from './EmptyState';
 
-export default function EventListPanel({ date, events, onEdit, onDelete, onDirections, onClose }) {
+export default function EventListPanel({ date, events, onPress, onEdit, onDelete, onDirections, onClose }) {
   const sorted = sortEventsByTime(events);
 
   return (
@@ -22,7 +22,13 @@ export default function EventListPanel({ date, events, onEdit, onDelete, onDirec
           data={sorted}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <EventCard event={item} onEdit={onEdit} onDelete={onDelete} onDirections={onDirections} />
+            <EventCard
+              event={item}
+              onPress={onPress}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDirections={onDirections}
+            />
           )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}

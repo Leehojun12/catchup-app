@@ -65,11 +65,24 @@ export default function ProfileScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>집 주소</Text>
-        <Pressable style={styles.row} onPress={() => setAddressModal(true)}>
-          <Ionicons name="home-outline" size={20} color={colors.primary} />
-          <Text style={[styles.rowText, !user?.homeAddress && styles.muted]} numberOfLines={2}>
-            {user?.homeAddress?.roadAddress || '집 주소를 등록해주세요'}
-          </Text>
+        <Pressable style={styles.addressRow} onPress={() => setAddressModal(true)}>
+          <View style={styles.addressIcon}>
+            <Ionicons name="home-outline" size={20} color={colors.primary} />
+          </View>
+          <View style={styles.flex}>
+            <Text style={[styles.addressMain, !user?.homeAddress && styles.muted]} numberOfLines={2}>
+              {user?.homeAddress?.roadAddress || '집 주소를 등록해주세요'}
+            </Text>
+            {user?.homeAddress ? (
+              <Text style={styles.addressSub} numberOfLines={1}>
+                {[user.homeAddress.detail, user.homeAddress.zonecode ? `우편번호 ${user.homeAddress.zonecode}` : '']
+                  .filter(Boolean)
+                  .join(' · ') || '상세 주소를 추가할 수 있어요'}
+              </Text>
+            ) : (
+              <Text style={styles.addressSub}>도로명, 지번, 건물명으로 검색</Text>
+            )}
+          </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
 
@@ -216,6 +229,34 @@ const styles = StyleSheet.create({
     borderRadius: layout.borderRadius,
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: layout.borderRadius,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 16,
+    minHeight: 72,
+  },
+  addressIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressMain: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  addressSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   rowText: {
     flex: 1,

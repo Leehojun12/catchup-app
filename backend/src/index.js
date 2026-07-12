@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth.routes');
 const aiRoutes = require('./routes/ai.routes');
 const recommendationsRoutes = require('./routes/recommendations.routes');
 const remindersRoutes = require('./routes/reminders.routes');
+const mapRoutes = require('./routes/map.routes');
 const reminderService = require('./services/reminder.service');
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/reminders', remindersRoutes);
+app.use('/api/map', mapRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
