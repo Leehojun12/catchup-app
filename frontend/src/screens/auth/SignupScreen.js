@@ -31,7 +31,6 @@ export default function SignupScreen({ navigation }) {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [name, setName] = useState('');
   const [homeAddress, setHomeAddress] = useState(null);
-  const [addressDetail, setAddressDetail] = useState('');
   const [addressModal, setAddressModal] = useState(false);
   const [social, setSocial] = useState(null);
   const [socialLoading, setSocialLoading] = useState(null);
@@ -64,9 +63,7 @@ export default function SignupScreen({ navigation }) {
       await signup({
         phone,
         name: name.trim(),
-        homeAddress: homeAddress
-          ? { ...homeAddress, detail: addressDetail.trim() }
-          : null,
+        homeAddress,
         marketingConsent,
         social,
       });
@@ -144,26 +141,23 @@ export default function SignupScreen({ navigation }) {
               <Text style={styles.sub}>약속 장소까지 길찾기에 사용돼요</Text>
 
               <Pressable style={styles.addressBox} onPress={() => setAddressModal(true)}>
-                <Ionicons name="search" size={18} color={colors.textSecondary} />
-                <Text style={[styles.addressText, !homeAddress && styles.placeholder]}>
-                  {homeAddress ? homeAddress.roadAddress : '주소 검색'}
-                </Text>
+                <Ionicons name="search" size={20} color={colors.primary} />
+                <View style={styles.flex}>
+                  <Text style={[styles.addressText, !homeAddress && styles.placeholder]}>
+                    {homeAddress ? homeAddress.roadAddress : '주소 검색하기'}
+                  </Text>
+                  {homeAddress ? (
+                    <Text style={styles.addressSub} numberOfLines={1}>
+                      {[homeAddress.detail, homeAddress.zonecode ? `우편번호 ${homeAddress.zonecode}` : '']
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  ) : (
+                    <Text style={styles.addressSub}>도로명, 지번, 건물명으로 검색</Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </Pressable>
-
-              {homeAddress && (
-                <>
-                  {homeAddress.zonecode ? (
-                    <Text style={styles.zonecode}>[{homeAddress.zonecode}]</Text>
-                  ) : null}
-                  <Text style={styles.label}>상세 주소</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="동/호수 등 상세 주소"
-                    value={addressDetail}
-                    onChangeText={setAddressDetail}
-                  />
-                </>
-              )}
             </View>
           )}
 
@@ -303,13 +297,19 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: layout.borderRadius,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+    paddingVertical: 16,
     backgroundColor: colors.surface,
+    minHeight: 72,
   },
   addressText: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
+  },
+  addressSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   placeholder: {
     color: colors.textMuted,
