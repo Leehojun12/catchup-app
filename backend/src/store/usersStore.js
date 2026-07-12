@@ -32,6 +32,8 @@ function upsertUser(data) {
     createdAt: new Date().toISOString(),
     // default fields
     name: '',
+    nickname: '',
+    profileImageUrl: null,
     phone: '',
     homeAddress: null, // { roadAddress, jibunAddress, zonecode, lat, lng }
     kakaoId: null,

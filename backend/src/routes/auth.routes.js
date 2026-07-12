@@ -4,7 +4,24 @@ const config = require('../config/env');
 const smsAuthService = require('../services/smsAuth.service');
 const kakaoAuthService = require('../services/kakaoAuth.service');
 const naverAuthService = require('../services/naverAuth.service');
-const { upsertUser, updateUser, getUser, publicUser } = require('../store/usersStore');
+const { upsertUser, updateUser, getUser, publicUser, findBySocial } = require('../store/usersStore');
+
+function buildKakaoUserData(profile, existing = null) {
+  const data = {
+    kakaoId: profile.id,
+    nickname: profile.nickname,
+    profileImageUrl: profile.profileImageUrl || null,
+    kakaoLinked: true,
+    kakaoAccessToken: profile.accessToken || null,
+    provider: 'kakao',
+  };
+
+  if (!existing?.name?.trim()) {
+    data.name = profile.nickname;
+  }
+
+  return data;
+}
 const { authMiddleware, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -61,9 +78,7 @@ router.post('/signup', async (req, res, next) => {
 
     if (social?.provider === 'kakao') {
       const profile = await kakaoAuthService.resolveProfile(social);
-      userData.kakaoId = profile.id;
-      userData.kakaoLinked = true;
-      userData.kakaoAccessToken = profile.accessToken || null;
+      Object.assign(userData, buildKakaoUserData(profile, { name: userData.name }));
     }
     if (social?.provider === 'naver') {
       const profile = await naverAuthService.resolveProfile(social);
@@ -174,13 +189,8 @@ router.get('/kakao/callback', (req, res) => {
 router.post('/kakao', async (req, res, next) => {
   try {
     const profile = await kakaoAuthService.resolveProfile(req.body);
-    const user = upsertUser({
-      kakaoId: profile.id,
-      nickname: profile.nickname,
-      kakaoLinked: true,
-      kakaoAccessToken: profile.accessToken || null,
-      provider: 'kakao',
-    });
+    const existing = findBySocial('kakao', profile.id);
+    const user = upsertUser(buildKakaoUserData(profile, existing));
 
     res.json({ token: issueToken(user), user: publicUser(user) });
   } catch (error) {
