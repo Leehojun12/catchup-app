@@ -6,6 +6,7 @@ function mockProfile() {
   return {
     id: `mock_kakao_${Date.now()}`,
     nickname: 'CatchUp 카카오 사용자',
+    profileImageUrl: null,
     accessToken: null,
   };
 }
@@ -26,9 +27,11 @@ async function getProfile(accessToken) {
   if (!response.ok) throw new Error('카카오 인증에 실패했습니다');
 
   const data = await response.json();
+  const profile = data.kakao_account?.profile || {};
   return {
     id: String(data.id),
-    nickname: data.kakao_account?.profile?.nickname || '사용자',
+    nickname: profile.nickname || '사용자',
+    profileImageUrl: profile.profile_image_url || profile.thumbnail_image_url || null,
     accessToken,
   };
 }

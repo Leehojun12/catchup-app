@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, layout, spacing } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import AddressSearch from '../components/auth/AddressSearch';
+import {
+  getAvatarInitial,
+  getDisplayName,
+  getProfileImageUrl,
+  getProfileSubtitle,
+} from '../utils/userProfile';
 
 export default function ProfileScreen() {
   const { user, updateProfile, logout } = useAuth();
@@ -13,6 +19,9 @@ export default function ProfileScreen() {
 
   const reminderEnabled = user?.reminderEnabled !== false;
   const reminderChannel = user?.reminderChannel || 'sms';
+  const displayName = getDisplayName(user);
+  const profileImageUrl = getProfileImageUrl(user);
+  const profileSubtitle = getProfileSubtitle(user);
 
   const patch = async (updates) => {
     setSaving(true);
@@ -42,12 +51,16 @@ export default function ProfileScreen() {
         <Text style={styles.title}>내 정보</Text>
 
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{(user?.name || 'C')[0]}</Text>
-          </View>
+          {profileImageUrl ? (
+            <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getAvatarInitial(user)}</Text>
+            </View>
+          )}
           <View style={styles.flex}>
-            <Text style={styles.name}>{user?.name || 'CatchUp 사용자'}</Text>
-            <Text style={styles.phone}>{user?.phone || '휴대폰 미등록'}</Text>
+            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.phone}>{profileSubtitle}</Text>
           </View>
         </View>
 
@@ -166,6 +179,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.border,
   },
   avatarText: {
     color: '#fff',
