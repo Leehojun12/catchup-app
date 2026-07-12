@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CatchUp: Dev Server (foreground)",
+      "type": "npm",
+      "script": "dev",
+      "path": "",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "CatchUp: Dev Server (background)",
+      "type": "shell",
+      "command": "npm run dev:bg",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -2,11 +2,22 @@
   "name": "catchup-app",
   "private": true,
   "scripts": {
+    "dev": "concurrently -k -n backend,expo -c blue,magenta \"npm run backend\" \"npm run frontend\"",
+    "dev:tunnel": "concurrently -k -n backend,expo -c blue,magenta \"npm run backend\" \"npm run frontend:tunnel\"",
+    "dev:bg": "npx pm2 start ecosystem.config.cjs",
+    "dev:stop": "powershell -ExecutionPolicy Bypass -File scripts/dev-stop.ps1",
+    "dev:start": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
+    "dev:status": "npx pm2 status",
+    "dev:logs": "npx pm2 logs",
     "frontend": "npm --prefix frontend start",
+    "frontend:only": "npm --prefix frontend start",
+    "frontend:tunnel": "npm --prefix frontend run start:tunnel",
     "backend": "npm --prefix backend run dev",
-    "install:all": "npm --prefix frontend install && npm --prefix backend install"
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "postinstall": "npm run install:all"
   },
-  "dependencies": {
-    "react-native-calendars": "^1.1314.0"
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "pm2": "^6.0.14"
   }
 }

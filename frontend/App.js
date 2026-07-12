@@ -6,10 +6,21 @@ import { EventProvider } from './src/context/EventContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { requestNotificationPermissions } from './src/services/notifications';
 import { initRepository } from './src/db/eventsRepository';
+import { getApiBaseUrl } from './src/utils/apiBaseUrl';
 
 export default function App() {
   useEffect(() => {
     requestNotificationPermissions().catch(() => {});
+
+    if (__DEV__) {
+      const baseUrl = getApiBaseUrl();
+      fetch(`${baseUrl}/health`)
+        .then((res) => res.json())
+        .then((data) => console.log('[API] health OK →', data, `(${baseUrl})`))
+        .catch((error) =>
+          console.warn('[API] health FAILED →', error.message, `(${baseUrl})`)
+        );
+    }
 
     // Initialize persistence. The repository probes WatermelonDB once and falls
     // back to AsyncStorage when the native module isn't available (e.g. Expo Go),

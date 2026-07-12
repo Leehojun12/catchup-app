@@ -81,6 +81,19 @@ router.post('/signup', async (req, res, next) => {
 });
 
 // ---- Social login / link ----
+// OAuth callback (카카오 콘솔 Redirect URI — https only)
+router.get('/kakao/callback', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>CatchUp 로그인</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:48px 24px;">
+  <p>카카오 로그인이 완료되었습니다.</p>
+  <p style="color:#64748B;font-size:14px;">잠시 후 앱으로 돌아갑니다.</p>
+</body>
+</html>`);
+});
+
 // Accepts { code, redirectUri } (real OAuth) or { accessToken } (dev mock)
 router.post('/kakao', async (req, res, next) => {
   try {

@@ -1,9 +1,39 @@
-import { API_BASE_URL } from '../utils/apiBaseUrl';
+import { getApiBaseUrl } from '../utils/apiBaseUrl';
 
 // Module-level auth token, set by AuthContext after login.
 let authToken = null;
 export function setAuthToken(token) {
   authToken = token;
+}
+
+function connectionHint(baseUrl) {
+  if (baseUrl.startsWith('https://') && baseUrl.includes('onrender.com')) {
+    return (
+      'Render 서버가 깨어 있는지 확인해주세요. (무료 플랜은 첫 요청에 30~60초 걸릴 수 있어요)\n' +
+      'frontend/.env 의 EXPO_PUBLIC_API_URL이 본인 서비스 URL인지 확인하세요.'
+    );
+  }
+  return (
+    'PC에서 `cd backend && npm run dev`로 서버를 실행했는지, ' +
+    'iPhone과 PC가 같은 Wi-Fi에 연결되어 있는지 확인해주세요.'
+  );
+}
+
+const RENDER_COLD_START_MS = 90000;
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RENDER_COLD_START_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('서버 응답 시간이 초과되었습니다. Render 무료 플랜은 첫 요청에 1분 정도 걸릴 수 있어요.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function parseResponse(response) {
@@ -15,6 +45,7 @@ async function parseResponse(response) {
 }
 
 async function request(path, options = {}) {
+  const baseUrl = getApiBaseUrl();
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -27,22 +58,20 @@ async function request(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithTimeout(`${baseUrl}${path}`, {
       ...options,
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
   } catch (error) {
-    const hint =
-      'PC에서 `cd backend && npm run dev`로 서버를 실행했는지, ' +
-      'iPhone과 PC가 같은 Wi-Fi에 연결되어 있는지 확인해주세요.';
-    throw new Error(`서버에 연결할 수 없습니다.\n${hint}\n(${API_BASE_URL})`);
+    throw new Error(`서버에 연결할 수 없습니다.\n${connectionHint(baseUrl)}\n(${baseUrl})`);
   }
 
   return parseResponse(response);
 }
 
 async function requestMultipart(path, formData) {
+  const baseUrl = getApiBaseUrl();
   const headers = {};
   const token = authToken;
   if (token) {
@@ -51,13 +80,13 @@ async function requestMultipart(path, formData) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchWithTimeout(`${baseUrl}${path}`, {
       method: 'POST',
       headers,
       body: formData,
     });
   } catch {
-    throw new Error('서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.');
+    throw new Error(`서버에 연결할 수 없습니다.\n${connectionHint(baseUrl)}`);
   }
 
   return parseResponse(response);

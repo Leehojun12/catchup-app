@@ -13,6 +13,9 @@
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "다가오는 일정을 알려드리기 위해 알림 권한이 필요합니다.",
         "NSMicrophoneUsageDescription": "음성으로 일정을 추가하기 위해 마이크 권한이 필요합니다."
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -25,12 +28,13 @@
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.catchupapp"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "package": "com.anonymous.catchupapp",
+      "runtimeVersion": "1.0.0"
     },
     "plugins": [
       "expo-secure-store",
@@ -59,6 +63,15 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "63b4ad4b-7c4c-49c6-ba51-39581f09d0b9"
+      }
+    },
+    "owner": "hojunlee95",
+    "updates": {
+      "url": "https://u.expo.dev/63b4ad4b-7c4c-49c6-ba51-39581f09d0b9"
+    }
   }
 }
