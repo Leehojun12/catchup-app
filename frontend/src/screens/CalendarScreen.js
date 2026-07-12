@@ -8,12 +8,11 @@ import { validateEventForm } from '../constants/validation';
 import { formatDate } from '../utils/dateUtils';
 import { useEvents } from '../context/EventContext';
 import { api } from '../services/api';
-import { openDirections } from '../utils/directions';
-import { getCurrentLocation } from '../services/location';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarView from '../components/calendar/CalendarView';
 import DayDetailSheet from '../components/events/DayDetailSheet';
 import EventDetailSheet from '../components/events/EventDetailSheet';
+import RoutePlannerSheet from '../components/maps/RoutePlannerSheet';
 import AddEventSheet from '../components/forms/AddEventSheet';
 import PreviewCard from '../components/forms/PreviewCard';
 import ActionSheet from '../components/input/ActionSheet';
@@ -45,6 +44,7 @@ export default function CalendarScreen() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [routeEvent, setRouteEvent] = useState(null);
   const [parsing, setParsing] = useState(false);
 
   const markedDates = useMemo(() => getDatesWithEvents(), [getDatesWithEvents]);
@@ -151,17 +151,17 @@ export default function CalendarScreen() {
     }
   };
 
-  const handleDirections = async (event) => {
-    try {
-      const origin = await getCurrentLocation();
-      openDirections({
-        origin,
-        destination: { name: event.title, address: event.location },
-        mode: 'car',
-      });
-    } catch (error) {
-      Alert.alert('길찾기', error.message);
+  const handleDirections = (event) => {
+    if (!event?.location) {
+      Alert.alert('길찾기', '일정에 장소가 없습니다.');
+      return;
     }
+    setRouteEvent(event);
+  };
+
+  const handleOpenRoute = (event) => {
+    setSelectedEvent(null);
+    setRouteEvent(event);
   };
 
   const handleSelectEvent = (event) => {
@@ -216,6 +216,7 @@ export default function CalendarScreen() {
         visible={!!selectedEvent}
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
+        onOpenRoute={handleOpenRoute}
         onEdit={(event) => {
           setSelectedEvent(null);
           handleEdit(event);
@@ -224,6 +225,12 @@ export default function CalendarScreen() {
           setSelectedEvent(null);
           setDeleteTarget(event);
         }}
+      />
+
+      <RoutePlannerSheet
+        visible={!!routeEvent}
+        event={routeEvent}
+        onClose={() => setRouteEvent(null)}
       />
 
       <ActionSheet

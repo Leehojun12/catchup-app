@@ -71,25 +71,42 @@ function getConfiguredRemoteUrl() {
   return null;
 }
 
+export function getMetroApiBaseUrl() {
+  const metroHost = getMetroHost();
+  if (metroHost) {
+    return `http://${metroHost}:${API_PORT}/api`;
+  }
+  return `http://localhost:${API_PORT}/api`;
+}
+
+export function getTransitProxyBaseUrl() {
+  const explicit = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_TRANSIT_PROXY_URL);
+  if (explicit) return explicit;
+
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    return getMetroApiBaseUrl();
+  }
+
+  return null;
+}
+
 export function getApiBaseUrl() {
   const remoteUrl = getConfiguredRemoteUrl();
   if (remoteUrl) {
     return remoteUrl;
   }
 
-  // Remote URL이 없을 때만 로컬 백엔드(Metro PC IP)로 폴백
-  const metroHost = getMetroHost();
-  if (metroHost) {
-    return `http://${metroHost}:${API_PORT}/api`;
-  }
-
-  return `http://localhost:${API_PORT}/api`;
+  return getMetroApiBaseUrl();
 }
 
 export const API_BASE_URL = getApiBaseUrl();
 
 if (__DEV__) {
   console.log('[API] base URL →', API_BASE_URL);
+  const transitProxy = getTransitProxyBaseUrl();
+  if (transitProxy) {
+    console.log('[API] transit proxy →', transitProxy);
+  }
   if (!getConfiguredRemoteUrl()) {
     console.warn(
       '[API] EXPO_PUBLIC_API_URL이 없습니다. frontend/.env 파일을 만들고 Render URL을 설정하세요.\n' +

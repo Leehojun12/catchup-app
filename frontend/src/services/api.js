@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../utils/apiBaseUrl';
+import { getApiBaseUrl, getTransitProxyBaseUrl } from '../utils/apiBaseUrl';
 
 // Module-level auth token, set by AuthContext after login.
 let authToken = null;
@@ -44,8 +44,7 @@ async function parseResponse(response) {
   return data;
 }
 
-async function request(path, options = {}) {
-  const baseUrl = getApiBaseUrl();
+async function requestToBase(baseUrl, path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -68,6 +67,10 @@ async function request(path, options = {}) {
   }
 
   return parseResponse(response);
+}
+
+async function request(path, options = {}) {
+  return requestToBase(getApiBaseUrl(), path, options);
 }
 
 async function requestMultipart(path, formData) {
@@ -139,4 +142,12 @@ export const api = {
 
   getRouteInfo: (payload) =>
     request('/map/route', { method: 'POST', body: payload }),
+
+  getTransitRoute: (payload) => {
+    const proxyBase = getTransitProxyBaseUrl();
+    if (proxyBase && proxyBase !== getApiBaseUrl()) {
+      return requestToBase(proxyBase, '/map/transit', { method: 'POST', body: payload });
+    }
+    return request('/map/transit', { method: 'POST', body: payload });
+  },
 };
