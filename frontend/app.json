@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "다가오는 일정을 알려드리기 위해 알림 권한이 필요합니다.",
-        "NSMicrophoneUsageDescription": "음성으로 일정을 추가하기 위해 마이크 권한이 필요합니다."
+        "NSMicrophoneUsageDescription": "음성으로 일정을 추가하기 위해 마이크 권한이 필요합니다.",
+        "NSLocationWhenInUseUsageDescription": "현재 위치에서 약속 장소까지 거리와 길찾기를 제공하기 위해 위치 권한이 필요합니다."
       },
       "runtimeVersion": {
         "policy": "appVersion"
@@ -29,15 +30,20 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.RECORD_AUDIO",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "package": "com.anonymous.catchupapp",
       "runtimeVersion": "1.0.0"
     },
     "plugins": [
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "현재 위치에서 약속 장소까지 거리와 길찾기를 제공하기 위해 위치 권한이 필요합니다."
+        }
+      ],
       [
         "expo-notifications",
         {

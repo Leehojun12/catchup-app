@@ -3,6 +3,8 @@ const config = require('../config/env');
 const LOCAL_BASE = 'https://dapi.kakao.com/v2/local';
 const NAVI_BASE = 'https://apis-navi.kakaomobility.com/v1';
 
+const MODES = ['car', 'walk', 'transit'];
+
 function hasApiKey() {
   return !!config.kakaoRestApiKey;
 }
@@ -51,6 +53,36 @@ function mockPoint(label) {
     lng: 127.0 + (seed % 100) / 10000,
     address: label || '모의 주소',
     name: label || '모의 장소',
+  };
+}
+
+function estimateRoute(origin, destination, mode) {
+  const straight = haversineMeters(origin, destination);
+
+  if (mode === 'walk') {
+    const distance = Math.round(straight * 1.2);
+    const duration = Math.max(60, Math.round((distance / 1000 / 4.5) * 3600));
+    return { distance, duration, provider: 'estimate' };
+  }
+
+  if (mode === 'transit') {
+    const distance = Math.round(straight * 1.4);
+    const duration = Math.max(300, Math.round((distance / 1000 / 22) * 3600));
+    return { distance, duration, provider: 'estimate' };
+  }
+
+  const distance = Math.round(straight * 1.35);
+  const duration = Math.max(300, Math.round((distance / 1000 / 30) * 3600));
+  return { distance, duration, provider: 'estimate' };
+}
+
+function buildModeResult(route) {
+  return {
+    distance: route.distance,
+    duration: route.duration,
+    distanceText: formatDistance(route.distance),
+    durationText: formatDuration(route.duration),
+    provider: route.provider,
   };
 }
 
@@ -110,38 +142,43 @@ async function resolvePoint({ address, name, lat, lng }) {
   return geocode(query);
 }
 
-async function getDrivingRoute(origin, destination) {
+const NAVI_ENDPOINTS = {
+  car: '/directions',
+  walk: '/directions/walking',
+  transit: '/directions/transit',
+};
+
+async function fetchNaviRoute(mode, origin, destination) {
   if (!hasApiKey()) {
-    const distance = Math.round(haversineMeters(origin, destination) * 1.35);
-    const duration = Math.max(300, Math.round((distance / 1000 / 30) * 3600));
-    return { distance, duration, provider: 'mock' };
+    return { ...estimateRoute(origin, destination, mode), provider: 'mock' };
   }
 
-  const response = await fetch(`${NAVI_BASE}/directions`, {
+  const endpoint = NAVI_ENDPOINTS[mode];
+  const body = {
+    origin: toCoord(origin),
+    destination: toCoord(destination),
+  };
+  if (mode === 'car') {
+    body.priority = 'RECOMMEND';
+  }
+
+  const response = await fetch(`${NAVI_BASE}${endpoint}`, {
     method: 'POST',
     headers: {
       ...authHeaders(),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      origin: toCoord(origin),
-      destination: toCoord(destination),
-      priority: 'RECOMMEND',
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    const distance = Math.round(haversineMeters(origin, destination) * 1.35);
-    const duration = Math.max(300, Math.round((distance / 1000 / 30) * 3600));
-    return { distance, duration, provider: 'estimate' };
+    return { ...estimateRoute(origin, destination, mode), provider: 'estimate' };
   }
 
   const data = await response.json();
   const summary = data.routes?.[0]?.summary;
   if (!summary) {
-    const distance = Math.round(haversineMeters(origin, destination) * 1.35);
-    const duration = Math.max(300, Math.round((distance / 1000 / 30) * 3600));
-    return { distance, duration, provider: 'estimate' };
+    return { ...estimateRoute(origin, destination, mode), provider: 'estimate' };
   }
 
   return {
@@ -154,16 +191,23 @@ async function getDrivingRoute(origin, destination) {
 async function getRouteInfo({ origin, destination }) {
   const resolvedOrigin = await resolvePoint(origin);
   const resolvedDestination = await resolvePoint(destination);
-  const route = await getDrivingRoute(resolvedOrigin, resolvedDestination);
+
+  const routeResults = await Promise.all(
+    MODES.map(async (mode) => {
+      const route = await fetchNaviRoute(mode, resolvedOrigin, resolvedDestination);
+      return [mode, buildModeResult(route)];
+    })
+  );
+
+  const modes = Object.fromEntries(routeResults);
 
   return {
     origin: resolvedOrigin,
     destination: resolvedDestination,
-    distance: route.distance,
-    duration: route.duration,
-    distanceText: formatDistance(route.distance),
-    durationText: formatDuration(route.duration),
-    provider: route.provider,
+    modes,
+    car: modes.car,
+    walk: modes.walk,
+    transit: modes.transit,
   };
 }
 
