@@ -7,6 +7,7 @@ import { connectSocial } from '../../services/socialAuth';
 import CatchUpBrand from '../../components/common/CatchUpBrand';
 import Button from '../../components/common/Button';
 import SocialButton from '../../components/auth/SocialButton';
+import KakaoSetupHint from '../../components/auth/KakaoSetupHint';
 
 export default function LoginScreen({ navigation }) {
   const { loginWithKakao, loginWithNaver } = useAuth();
@@ -36,6 +37,7 @@ export default function LoginScreen({ navigation }) {
       </View>
 
       <View style={styles.actions}>
+        <KakaoSetupHint />
         <SocialButton
           provider="kakao"
           label="카카오로 시작하기"
