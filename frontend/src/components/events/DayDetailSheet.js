@@ -19,6 +19,7 @@ export default function DayDetailSheet({
   date,
   events,
   onClose,
+  onPress,
   onEdit,
   onDelete,
   onDirections,
@@ -78,6 +79,7 @@ export default function DayDetailSheet({
         <EventListPanel
           date={date}
           events={events}
+          onPress={onPress}
           onEdit={onEdit}
           onDelete={onDelete}
           onDirections={onDirections}
