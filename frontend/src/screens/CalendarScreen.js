@@ -7,9 +7,9 @@ import { colors, layout, spacing } from '../constants/theme';
 import { validateEventForm } from '../constants/validation';
 import { formatDate } from '../utils/dateUtils';
 import { useEvents } from '../context/EventContext';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { openDirections } from '../utils/directions';
+import { getCurrentLocation } from '../services/location';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarView from '../components/calendar/CalendarView';
 import DayDetailSheet from '../components/events/DayDetailSheet';
@@ -32,7 +32,6 @@ export default function CalendarScreen() {
     updateEvent,
     deleteEvent,
   } = useEvents();
-  const { user } = useAuth();
 
   const [currentMonth, setCurrentMonth] = useState(dayjs().format('YYYY-MM-DD'));
   const [panelOpen, setPanelOpen] = useState(false);
@@ -152,19 +151,17 @@ export default function CalendarScreen() {
     }
   };
 
-  const handleDirections = (event) => {
-    const home = user?.homeAddress;
-    openDirections({
-      origin: home
-        ? {
-            name: '집',
-            address: [home.roadAddress, home.detail].filter(Boolean).join(' '),
-            lat: home.lat,
-            lng: home.lng,
-          }
-        : null,
-      destination: { name: event.title, address: event.location },
-    });
+  const handleDirections = async (event) => {
+    try {
+      const origin = await getCurrentLocation();
+      openDirections({
+        origin,
+        destination: { name: event.title, address: event.location },
+        mode: 'car',
+      });
+    } catch (error) {
+      Alert.alert('길찾기', error.message);
+    }
   };
 
   const handleSelectEvent = (event) => {
@@ -218,7 +215,6 @@ export default function CalendarScreen() {
       <EventDetailSheet
         visible={!!selectedEvent}
         event={selectedEvent}
-        homeAddress={user?.homeAddress}
         onClose={() => setSelectedEvent(null)}
         onEdit={(event) => {
           setSelectedEvent(null);

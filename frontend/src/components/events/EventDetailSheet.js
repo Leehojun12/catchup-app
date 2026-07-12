@@ -13,7 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, layout, spacing } from '../../constants/theme';
 import { formatDisplayDate } from '../../utils/dateUtils';
 import { api } from '../../services/api';
+import { getCurrentLocation } from '../../services/location';
 import { openDirections } from '../../utils/directions';
+
+const ROUTE_MODES = [
+  { key: 'car', label: '자동차', icon: 'car-outline' },
+  { key: 'transit', label: '대중교통', icon: 'bus-outline' },
+  { key: 'walk', label: '도보', icon: 'walk-outline' },
+];
 
 function formatEventTime(event) {
   if (event.allDay) return '종일';
@@ -21,10 +28,34 @@ function formatEventTime(event) {
   return event.startTime || '시간 미정';
 }
 
+function ModeRow({ mode, data, active, onPress }) {
+  return (
+    <Pressable
+      style={[styles.modeRow, active && styles.modeRowActive]}
+      onPress={onPress}
+    >
+      <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>
+        <Ionicons name={mode.icon} size={18} color={active ? colors.primaryDark : colors.textSecondary} />
+      </View>
+      <View style={styles.modeContent}>
+        <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{mode.label}</Text>
+        {data ? (
+          <Text style={styles.modeMeta}>
+            {data.distanceText} · {data.durationText}
+            {data.provider === 'estimate' ? ' (추정)' : ''}
+          </Text>
+        ) : (
+          <Text style={styles.modeMetaMuted}>정보 없음</Text>
+        )}
+      </View>
+      {active ? <Ionicons name="checkmark-circle" size={18} color={colors.primary} /> : null}
+    </Pressable>
+  );
+}
+
 export default function EventDetailSheet({
   visible,
   event,
-  homeAddress,
   onClose,
   onEdit,
   onDelete,
@@ -32,72 +63,59 @@ export default function EventDetailSheet({
   const [routeInfo, setRouteInfo] = useState(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState('');
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [selectedMode, setSelectedMode] = useState('car');
+
+  const loadRoutes = async () => {
+    if (!event?.location) return;
+
+    setRouteLoading(true);
+    setRouteError('');
+    setRouteInfo(null);
+
+    try {
+      const location = await getCurrentLocation();
+      setCurrentLocation(location);
+
+      const res = await api.getRouteInfo({
+        origin: location,
+        destination: {
+          name: event.title,
+          address: event.location,
+        },
+      });
+      setRouteInfo(res.route);
+    } catch (error) {
+      setRouteError(error.message || '경로 정보를 불러오지 못했습니다');
+    } finally {
+      setRouteLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!visible || !event?.location) {
       setRouteInfo(null);
       setRouteError('');
+      setCurrentLocation(null);
+      setSelectedMode('car');
       return;
     }
 
-    if (!homeAddress?.roadAddress) {
-      setRouteInfo(null);
-      setRouteError('집 주소를 등록하면 거리와 소요 시간을 볼 수 있어요');
-      return;
-    }
-
-    let cancelled = false;
-    setRouteLoading(true);
-    setRouteError('');
-    setRouteInfo(null);
-
-    api
-      .getRouteInfo({
-        origin: {
-          name: '집',
-          address: [homeAddress.roadAddress, homeAddress.detail].filter(Boolean).join(' '),
-          lat: homeAddress.lat,
-          lng: homeAddress.lng,
-        },
-        destination: {
-          name: event.title,
-          address: event.location,
-        },
-      })
-      .then((res) => {
-        if (!cancelled) setRouteInfo(res.route);
-      })
-      .catch((error) => {
-        if (!cancelled) setRouteError(error.message || '경로 정보를 불러오지 못했습니다');
-      })
-      .finally(() => {
-        if (!cancelled) setRouteLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, event, homeAddress]);
+    loadRoutes();
+  }, [visible, event?.id, event?.location]);
 
   if (!event) return null;
 
   const membersText = event.members?.length ? event.members.join(', ') : null;
 
   const handleDirections = () => {
-    const home = homeAddress;
     openDirections({
-      origin: routeInfo?.origin || (home
-        ? {
-            name: '집',
-            address: [home.roadAddress, home.detail].filter(Boolean).join(' '),
-            lat: home.lat,
-            lng: home.lng,
-          }
-        : null),
+      origin: routeInfo?.origin || currentLocation,
       destination: routeInfo?.destination || {
         name: event.title,
         address: event.location,
       },
+      mode: selectedMode,
     });
   };
 
@@ -129,38 +147,52 @@ export default function EventDetailSheet({
           {event.location ? (
             <View style={styles.routeCard}>
               <View style={styles.routeHeader}>
-                <Ionicons name="car-outline" size={18} color={colors.primaryDark} />
-                <Text style={styles.routeTitle}>집에서 약속 장소까지</Text>
+                <Ionicons name="navigate-circle-outline" size={18} color={colors.primaryDark} />
+                <View style={styles.flex}>
+                  <Text style={styles.routeTitle}>현재 위치에서 약속 장소까지</Text>
+                  {currentLocation ? (
+                    <Text style={styles.routeSub}>GPS 기준 실시간 거리</Text>
+                  ) : null}
+                </View>
+                <Pressable onPress={loadRoutes} hitSlop={8} disabled={routeLoading}>
+                  <Ionicons name="refresh" size={18} color={colors.primary} />
+                </Pressable>
               </View>
 
               {routeLoading ? (
                 <View style={styles.routeLoading}>
                   <ActivityIndicator color={colors.primary} />
-                  <Text style={styles.routeLoadingText}>거리와 소요 시간 계산 중...</Text>
+                  <Text style={styles.routeLoadingText}>위치 확인 및 경로 계산 중...</Text>
                 </View>
-              ) : routeInfo ? (
-                <View style={styles.routeStats}>
-                  <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>거리</Text>
-                    <Text style={styles.statValue}>{routeInfo.distanceText}</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>예상 시간</Text>
-                    <Text style={styles.statValue}>{routeInfo.durationText}</Text>
-                  </View>
+              ) : routeInfo?.modes ? (
+                <View style={styles.modeList}>
+                  {ROUTE_MODES.map((mode) => (
+                    <ModeRow
+                      key={mode.key}
+                      mode={mode}
+                      data={routeInfo.modes[mode.key]}
+                      active={selectedMode === mode.key}
+                      onPress={() => setSelectedMode(mode.key)}
+                    />
+                  ))}
                 </View>
               ) : (
                 <Text style={styles.routeError}>{routeError}</Text>
               )}
 
+              {routeError && routeInfo?.modes ? (
+                <Text style={styles.routeWarning}>{routeError}</Text>
+              ) : null}
+
               <Pressable
-                style={[styles.directionsButton, !homeAddress?.roadAddress && styles.directionsDisabled]}
+                style={[styles.directionsButton, (!routeInfo && routeLoading) && styles.directionsDisabled]}
                 onPress={handleDirections}
-                disabled={!homeAddress?.roadAddress}
+                disabled={!routeInfo || routeLoading}
               >
                 <Ionicons name="navigate" size={18} color="#fff" />
-                <Text style={styles.directionsButtonText}>카카오맵으로 길찾기</Text>
+                <Text style={styles.directionsButtonText}>
+                  {ROUTE_MODES.find((m) => m.key === selectedMode)?.label || '카카오맵'}으로 길찾기
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -199,6 +231,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -279,6 +314,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryDark,
   },
+  routeSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   routeLoading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -289,39 +329,67 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
   },
-  routeStats: {
+  modeList: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  modeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
     backgroundColor: colors.background,
     borderRadius: layout.borderRadius,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  statBox: {
-    flex: 1,
+  modeRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#F0FDFA',
+  },
+  modeIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 4,
+  modeIconWrapActive: {
+    backgroundColor: colors.primaryLight,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
+  modeContent: {
+    flex: 1,
+  },
+  modeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.text,
   },
-  statDivider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: colors.border,
+  modeLabelActive: {
+    color: colors.primaryDark,
+  },
+  modeMeta: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  modeMetaMuted: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   routeError: {
     fontSize: 13,
     color: colors.textSecondary,
     marginBottom: spacing.md,
     lineHeight: 20,
+  },
+  routeWarning: {
+    fontSize: 12,
+    color: colors.warning,
+    marginBottom: spacing.sm,
   },
   directionsButton: {
     flexDirection: 'row',
