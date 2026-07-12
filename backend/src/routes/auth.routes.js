@@ -81,15 +81,91 @@ router.post('/signup', async (req, res, next) => {
 });
 
 // ---- Social login / link ----
-// OAuth callback (카카오 콘솔 Redirect URI — https only)
-router.get('/kakao/callback', (_req, res) => {
+function decodeOAuthState(state) {
+  if (typeof state !== 'string' || !state) return '';
+
+  if (state.startsWith('exp://') || state.startsWith('catchup://')) {
+    return state;
+  }
+
+  try {
+    const padded = state.replace(/-/g, '+').replace(/_/g, '/');
+    const padLen = (4 - (padded.length % 4)) % 4;
+    const decoded = Buffer.from(padded + '='.repeat(padLen), 'base64').toString('utf8');
+    return decodeURIComponent(decoded);
+  } catch {
+    return '';
+  }
+}
+
+// OAuth callback → Expo Go로 복귀 (catchup-oauth-v2)
+router.get('/kakao/callback', (req, res) => {
+  const { code, state, error, error_description: errorDescription } = req.query;
+
+  if (error) {
+    res.status(400).setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(`<!DOCTYPE html><html lang="ko"><body style="font-family:sans-serif;padding:32px;">
+      <h2>카카오 로그인 오류</h2><p>${errorDescription || error}</p></body></html>`);
+  }
+
+  const returnTarget = decodeOAuthState(state);
+  const isAppScheme =
+    returnTarget.startsWith('exp://') || returnTarget.startsWith('catchup://');
+
+  if (code && isAppScheme) {
+    const separator = returnTarget.includes('?') ? '&' : '?';
+    return res.redirect(
+      302,
+      `${returnTarget}${separator}code=${encodeURIComponent(String(code))}`
+    );
+  }
+
+  const safeCode = JSON.stringify(code ? String(code) : '');
+  const safeState = JSON.stringify(state ? String(state) : '');
+
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(`<!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="utf-8"><title>CatchUp 로그인</title></head>
-<body style="font-family:sans-serif;text-align:center;padding:48px 24px;">
-  <p>카카오 로그인이 완료되었습니다.</p>
-  <p style="color:#64748B;font-size:14px;">잠시 후 앱으로 돌아갑니다.</p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CatchUp 로그인</title>
+  <!-- catchup-oauth-v2 -->
+  <style>
+    body { font-family: -apple-system, sans-serif; text-align: center; padding: 48px 24px; }
+    a { display: inline-block; margin-top: 16px; padding: 12px 20px; background: #14B8A6;
+         color: #fff; text-decoration: none; border-radius: 10px; font-weight: 600; }
+    p.note { color: #64748B; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <p id="msg">앱으로 돌아가는 중...</p>
+  <p class="note">자동 이동이 안 되면 아래 버튼을 눌러주세요.</p>
+  <a id="openApp" href="#" style="display:none">CatchUp 앱으로 돌아가기</a>
+  <script>
+    function decodeState(raw) {
+      if (!raw) return '';
+      if (raw.indexOf('exp://') === 0 || raw.indexOf('catchup://') === 0) return raw;
+      try {
+        var b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        return decodeURIComponent(atob(b64));
+      } catch (e) { return ''; }
+    }
+    var code = ${safeCode};
+    var state = ${safeState};
+    var target = decodeState(state);
+    if (code && target) {
+      var sep = target.indexOf('?') >= 0 ? '&' : '?';
+      var appUrl = target + sep + 'code=' + encodeURIComponent(code);
+      var link = document.getElementById('openApp');
+      link.href = appUrl;
+      link.style.display = 'inline-block';
+      window.location.replace(appUrl);
+    } else {
+      document.getElementById('msg').textContent = '로그인 정보를 확인할 수 없습니다. 앱에서 다시 시도해주세요.';
+    }
+  </script>
 </body>
 </html>`);
 });

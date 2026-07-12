@@ -1,5 +1,7 @@
 const config = require('../config/env');
 
+const DEV_MOCK_TOKEN = 'dev-mock-token';
+
 function mockProfile() {
   return {
     id: `mock_kakao_${Date.now()}`,
@@ -11,6 +13,12 @@ function mockProfile() {
 // Fetch the Kakao profile from an existing access token.
 async function getProfile(accessToken) {
   if (!config.kakaoRestApiKey) return mockProfile();
+
+  if (accessToken === DEV_MOCK_TOKEN) {
+    throw new Error(
+      '앱에 카카오 키가 없습니다. frontend/.env의 EXPO_PUBLIC_KAKAO_REST_API_KEY를 설정하고 npm start -- --clear 로 재시작하세요.'
+    );
+  }
 
   const response = await fetch('https://kapi.kakao.com/v2/user/me', {
     headers: { Authorization: `Bearer ${accessToken}` },
