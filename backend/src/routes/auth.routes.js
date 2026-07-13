@@ -113,26 +113,6 @@ function decodeOAuthState(state) {
   }
 }
 
-// 안드로이드 Expo Go는 exp:// 딥링크 복귀가 안 되므로, 콜백이 code를 state로 잠깐
-// 보관하고 앱이 폴링(GET /kakao/result)으로 가져간다.
-// ponytail: 인메모리 Map + 단일 인스턴스 가정. 테스트 규모엔 충분, 다중 인스턴스면 Redis로.
-const codeStore = new Map(); // state -> { code, expires }
-const CODE_TTL_MS = 3 * 60 * 1000;
-
-function putCode(state, code) {
-  if (!state || !code) return;
-  const now = Date.now();
-  for (const [k, v] of codeStore) if (v.expires < now) codeStore.delete(k); // 만료 청소
-  codeStore.set(state, { code, expires: now + CODE_TTL_MS });
-}
-
-function takeCode(state) {
-  const hit = state && codeStore.get(state);
-  if (!hit) return null;
-  codeStore.delete(state); // 1회성
-  return hit.expires < Date.now() ? null : hit.code;
-}
-
 // OAuth callback → Expo Go로 복귀 (catchup-oauth-v2)
 router.get('/kakao/callback', (req, res) => {
   const { code, state, error, error_description: errorDescription } = req.query;
@@ -143,26 +123,16 @@ router.get('/kakao/callback', (req, res) => {
       <h2>카카오 로그인 오류</h2><p>${errorDescription || error}</p></body></html>`);
   }
 
-  // 앱 폴링용으로 code 보관 (안드로이드 복귀 경로)
-  putCode(state ? String(state) : '', code ? String(code) : '');
+  const returnTarget = decodeOAuthState(state);
+  const isAppScheme =
+    returnTarget.startsWith('exp://') || returnTarget.startsWith('catchup://');
 
-  // Android Chrome Custom Tab은 커스텀 스킴 302 리다이렉트를 무시(dismiss)하므로
-  // 안드로이드에서만 아래 HTML 페이지의 window.location으로 앱 스킴을 연다.
-  // iOS(ASWebAuthenticationSession)는 302를 정상적으로 잡으므로 기존 방식 유지.
-  const isAndroid = /Android/i.test(req.get('user-agent') || '');
-
-  if (!isAndroid) {
-    const returnTarget = decodeOAuthState(state);
-    const isAppScheme =
-      returnTarget.startsWith('exp://') || returnTarget.startsWith('catchup://');
-
-    if (code && isAppScheme) {
-      const separator = returnTarget.includes('?') ? '&' : '?';
-      return res.redirect(
-        302,
-        `${returnTarget}${separator}code=${encodeURIComponent(String(code))}`
-      );
-    }
+  if (code && isAppScheme) {
+    const separator = returnTarget.includes('?') ? '&' : '?';
+    return res.redirect(
+      302,
+      `${returnTarget}${separator}code=${encodeURIComponent(String(code))}`
+    );
   }
 
   const safeCode = JSON.stringify(code ? String(code) : '');
@@ -213,14 +183,6 @@ router.get('/kakao/callback', (req, res) => {
   </script>
 </body>
 </html>`);
-});
-
-// 앱 폴링: state로 보관된 code를 1회성으로 반환 (없으면 204)
-router.get('/kakao/result', (req, res) => {
-  const state = req.query.state ? String(req.query.state) : '';
-  const code = takeCode(state);
-  if (!code) return res.status(204).end();
-  res.json({ code, state });
 });
 
 // Accepts { code, redirectUri } (real OAuth) or { accessToken } (dev mock)

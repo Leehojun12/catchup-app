@@ -104,29 +104,6 @@ function parseOAuthCallback(url, httpsRedirectUri) {
   };
 }
 
-/** 백엔드가 state로 보관한 code를 폴링으로 가져온다 (안드로이드 딥링크 복귀 대체) */
-async function pollKakaoCode(state, signal) {
-  const apiBase = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
-  if (!apiBase.startsWith('https://') || !state) return null;
-
-  const url = `${apiBase}/auth/kakao/result?state=${encodeURIComponent(state)}`;
-  const deadline = Date.now() + 120000; // 최대 2분
-
-  while (!signal.stopped && Date.now() < deadline) {
-    try {
-      const res = await fetch(url);
-      if (res.status === 200) {
-        const data = await res.json();
-        if (data?.code) return { code: data.code, state: data.state ?? state };
-      }
-    } catch {
-      // 네트워크 일시 오류는 무시하고 재시도
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-  return null;
-}
-
 export async function connectSocial(provider) {
   const config = PROVIDERS[provider];
   if (!config) throw new Error('지원하지 않는 소셜 제공자입니다');
@@ -149,51 +126,38 @@ export async function connectSocial(provider) {
     return { provider, accessToken: DEV_MOCK_TOKEN };
   }
 
-  const oauthState = encodeOAuthState(appReturnUri);
-
   const request = new AuthSession.AuthRequest({
     clientId: config.clientId,
     redirectUri: httpsRedirectUri,
     responseType: AuthSession.ResponseType.Code,
     scopes: config.scopes,
     usePKCE: false,
-    state: oauthState,
+    state: encodeOAuthState(appReturnUri),
   });
 
   const authUrl = await request.makeAuthUrlAsync(config.discovery);
 
-  // 안드로이드 Expo Go는 exp:// 복귀를 못 잡으므로 백엔드가 code를 state로 보관하고
-  // 앱이 폴링으로 가져온다. iOS/딥링크가 성공하면 폴링 결과를 기다리지 않고 바로 사용.
-  const pollSignal = { stopped: false };
-  const pollPromise = pollKakaoCode(oauthState, pollSignal).then((res) => {
-    if (res) WebBrowser.dismissBrowser().catch(() => {}); // 폴링이 먼저 잡으면 브라우저 닫기
-    return res;
-  });
+  // 카카오 → https 콜백 → exp:// 로 복귀 (Render 콜백 페이지가 처리)
+  const browserResult = await WebBrowser.openAuthSessionAsync(authUrl, appReturnUri);
 
-  let params = null;
-  try {
-    // 카카오 → https 콜백 → (iOS) exp:// 복귀 / (안드로이드) 폴링
-    const browserResult = await WebBrowser.openAuthSessionAsync(authUrl, appReturnUri);
-    if (browserResult.type === 'success' && browserResult.url) {
-      params = parseOAuthCallback(browserResult.url, httpsRedirectUri);
-    }
-    if (__DEV__) {
-      console.log(`[OAuth:${provider}] browser →`, browserResult.type, params?.code ? 'code✓' : 'no-code');
-    }
-    // 딥링크로 못 받았으면(안드로이드) 폴링 결과를 잠깐 더 대기
-    if (!params?.code) {
-      const polled = await Promise.race([
-        pollPromise,
-        new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
-      ]);
-      if (polled?.code) params = polled;
-    }
-  } finally {
-    pollSignal.stopped = true;
+  if (__DEV__) {
+    console.log(`[OAuth:${provider}] browser →`, browserResult.type, browserResult.url);
   }
 
+  if (browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
+    throw new Error(
+      '카카오 로그인이 완료되지 않았습니다.\n' +
+        '로그인 후 브라우저가 자동으로 닫혀야 합니다. 상단 취소를 누르지 마세요.'
+    );
+  }
+
+  if (browserResult.type !== 'success' || !browserResult.url) {
+    throw new Error('카카오 로그인에 실패했습니다. Redirect URI 설정을 확인해주세요.');
+  }
+
+  const params = parseOAuthCallback(browserResult.url, httpsRedirectUri);
   if (!params?.code) {
-    throw new Error('카카오 로그인이 완료되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    throw new Error('카카오 인증 코드를 받지 못했습니다.');
   }
 
   return {
