@@ -123,16 +123,23 @@ router.get('/kakao/callback', (req, res) => {
       <h2>카카오 로그인 오류</h2><p>${errorDescription || error}</p></body></html>`);
   }
 
-  const returnTarget = decodeOAuthState(state);
-  const isAppScheme =
-    returnTarget.startsWith('exp://') || returnTarget.startsWith('catchup://');
+  // Android Chrome Custom Tab은 커스텀 스킴 302 리다이렉트를 무시(dismiss)하므로
+  // 안드로이드에서만 아래 HTML 페이지의 window.location으로 앱 스킴을 연다.
+  // iOS(ASWebAuthenticationSession)는 302를 정상적으로 잡으므로 기존 방식 유지.
+  const isAndroid = /Android/i.test(req.get('user-agent') || '');
 
-  if (code && isAppScheme) {
-    const separator = returnTarget.includes('?') ? '&' : '?';
-    return res.redirect(
-      302,
-      `${returnTarget}${separator}code=${encodeURIComponent(String(code))}`
-    );
+  if (!isAndroid) {
+    const returnTarget = decodeOAuthState(state);
+    const isAppScheme =
+      returnTarget.startsWith('exp://') || returnTarget.startsWith('catchup://');
+
+    if (code && isAppScheme) {
+      const separator = returnTarget.includes('?') ? '&' : '?';
+      return res.redirect(
+        302,
+        `${returnTarget}${separator}code=${encodeURIComponent(String(code))}`
+      );
+    }
   }
 
   const safeCode = JSON.stringify(code ? String(code) : '');
