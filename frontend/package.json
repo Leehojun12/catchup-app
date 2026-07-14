@@ -64,6 +64,7 @@
   "overrides": {
     "@nozbe/with-observables": {
       "react": "$react"
-    }
+    },
+    "expo-font": "14.0.12"
   }
 }
