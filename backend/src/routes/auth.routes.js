@@ -180,10 +180,16 @@ router.get('/kakao/callback', (req, res) => {
     if (code && target) {
       var sep = target.indexOf('?') >= 0 ? '&' : '?';
       var appUrl = target + sep + 'code=' + encodeURIComponent(code);
+      // 안드로이드 크롬 커스텀탭은 커스텀 스킴(catchup://) 이동을 막으므로
+      // intent:// URI로 앱을 실행한다 (크롬이 허용하는 표준 기법).
+      var m = appUrl.match(/^catchup:\\/\\/(.*)$/);
+      var launchUrl = m
+        ? 'intent://' + m[1] + '#Intent;scheme=catchup;package=com.hojunlee95.catchupapp;end'
+        : appUrl;
       var link = document.getElementById('openApp');
-      link.href = appUrl;
+      link.href = launchUrl;
       link.style.display = 'inline-block';
-      window.location.replace(appUrl);
+      window.location.replace(launchUrl);
     } else {
       document.getElementById('msg').textContent = '로그인 정보를 확인할 수 없습니다. 앱에서 다시 시도해주세요.';
     }
