@@ -1,3 +1,4 @@
+import { Linking } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -137,25 +138,52 @@ export async function connectSocial(provider) {
 
   const authUrl = await request.makeAuthUrlAsync(config.discovery);
 
-  // 카카오 → https 콜백 → exp:// 로 복귀 (Render 콜백 페이지가 처리)
-  const browserResult = await WebBrowser.openAuthSessionAsync(authUrl, appReturnUri);
+  // Android Custom Tabs는 exp:// 복귀를 세션 결과로 못 잡고 dismiss를 반환하므로
+  // Linking 이벤트로 딥링크를 병행 수신 (Expo WebBrowser 문서 권장 패턴)
+  let resolveDeepLink;
+  const deepLink = new Promise((resolve) => {
+    resolveDeepLink = resolve;
+  });
+  const subscription = Linking.addEventListener('url', ({ url }) => {
+    if (__DEV__) console.log(`[OAuth:${provider}] deep link ←`, url);
+    resolveDeepLink(url);
+    WebBrowser.dismissBrowser().catch(() => {});
+  });
+
+  let browserResult;
+  let resultUrl = null;
+  try {
+    // 카카오 → https 콜백 → exp:// 로 복귀 (Render 콜백 페이지가 처리)
+    browserResult = await WebBrowser.openAuthSessionAsync(authUrl, appReturnUri);
+
+    if (browserResult.type === 'success' && browserResult.url) {
+      resultUrl = browserResult.url;
+    } else if (browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
+      // dismiss 직후 딥링크가 늦게 도착할 수 있어 잠깐 대기
+      resultUrl = await Promise.race([
+        deepLink,
+        new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+    }
+  } finally {
+    subscription.remove();
+  }
 
   if (__DEV__) {
-    console.log(`[OAuth:${provider}] browser →`, browserResult.type, browserResult.url);
+    console.log(`[OAuth:${provider}] browser →`, browserResult.type, resultUrl);
   }
 
-  if (browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
-    throw new Error(
-      '카카오 로그인이 완료되지 않았습니다.\n' +
-        '로그인 후 브라우저가 자동으로 닫혀야 합니다. 상단 취소를 누르지 마세요.'
-    );
-  }
-
-  if (browserResult.type !== 'success' || !browserResult.url) {
+  if (!resultUrl) {
+    if (browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
+      throw new Error(
+        '카카오 로그인이 완료되지 않았습니다.\n' +
+          '로그인 후 브라우저가 자동으로 닫혀야 합니다. 상단 취소를 누르지 마세요.'
+      );
+    }
     throw new Error('카카오 로그인에 실패했습니다. Redirect URI 설정을 확인해주세요.');
   }
 
-  const params = parseOAuthCallback(browserResult.url, httpsRedirectUri);
+  const params = parseOAuthCallback(resultUrl, httpsRedirectUri);
   if (!params?.code) {
     throw new Error('카카오 인증 코드를 받지 못했습니다.');
   }
